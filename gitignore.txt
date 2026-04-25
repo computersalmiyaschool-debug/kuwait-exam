@@ -1,0 +1,6 @@
+# ملف .gitignore
+node_modules/
+.env.local
+.env
+dist/
+.vercel/
