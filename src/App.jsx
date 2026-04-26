@@ -2278,7 +2278,7 @@ export default function App() {
             ...q,
             codeParts: q.codeParts.map(p=> p.type==="blank" ? {...p, answer:undefined, _a:undefined} : p)
           }))}}
-          student={student} onSubmit={handleSubmit}/>
+          student={student} onSubmit={handleSubmit}/>}
         {screen==="grading"&&(
           <div style={{maxWidth:400,margin:"100px auto",textAlign:"center",fontFamily:"Cairo",direction:"rtl",padding:24}}>
             <div style={{fontSize:48,marginBottom:16}}>⏳</div>
