@@ -2178,7 +2178,7 @@ function TeacherLogin({ onSuccess, onBack }) {
 }
 
 // ─── ROOT APP ────────────────────────────────────────────────
-export default function App() {
+function App() {
   const [screen,setScreen]=useState("home");
   const [student,setStudent]=useState(null);
   const [examAnswers,setExamAnswers]=useState({});
@@ -2231,91 +2231,45 @@ export default function App() {
     setStudent(s);
     setScreen("exam");
   };
- // --- دالة التصحيح الآمن (يجب أن تكون موجودة ليتم استدعاؤها) ---
+ // 1. دالة التصحيح الآمن
   async function gradeExamAPI(exam, answers) {
     try {
       const res = await fetch("/api/grade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          examId: exam.id,
-          answers: answers
-        })
+        body: JSON.stringify({ examId: exam.id, answers })
       });
-      if (!res.ok) throw new Error("خطأ في الاتصال بالسيرفر");
+      if (!res.ok) throw new Error("Error");
       return await res.json();
     } catch (e) {
-      console.error("Grading API Error:", e);
-      // في حال فشل السيرفر، يتم إرجاع نتيجة صفرية لتجنب الصفحة البيضاء
-      return { scored: 0, total: 10, details: [] };
+      return { scored: 0, total: 5, details: [] };
     }
   }
 
+  // 2. دالة تسليم الاختبار
   const handleSubmit = async (ans, violations) => {
     lastViolations.current = violations;
-    setScreen("grading"); 
+    setScreen("grading");
     try {
       const r = await gradeExamAPI(currentExam, ans);
-      setExamAnswers(ans); 
       setResult(r);
-      setAllResults(prev => {
-        const n = [...prev, {
-          student,
-          examId: currentExam.id,
-          scored: r.scored,
-          total: r.total,
-          details: r.details,
-          answers: ans,
-          exam: currentExam,
-          violations: violations,
-          timestamp: new Date().toLocaleString("ar-KW")
-        }];
-        try { localStorage.setItem("exam_results", JSON.stringify(n)); } catch (e) {}
-        return n;
-      });
+      setExamAnswers(ans);
       setScreen("results");
     } catch (e) {
-      console.error("Grading error:", e);
-      setScreen("results"); 
+      setScreen("results");
     }
   };
 
-  const handleUpdateSettings = (settings, clearRes = false) => {
-    setTeacherSettings(settings);
-    if (clearRes) setAllResults([]);
-  };
-
-  const exam = currentExam || getExam();
-
+  // 3. واجهة التطبيق (الرسم)
   return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
       <style>{globalCSS}</style>
-      <style>{`
-        @keyframes loading-bar {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
-      `}</style>
       <Header />
       <div style={{ flex: 1 }}>
-        {/* التنقل بين الشاشات بشكل منظم */}
         {screen === "home" && <HomePage onTeacher={() => setScreen("teacher_login")} />}
-        
-        {screen === "expired" && (
-          <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 16px", fontFamily: "Cairo", direction: "rtl", textAlign: "center" }}>
-            <div className="card" style={{ padding: 40 }}>
-              <div style={{ fontSize: 64, marginBottom: 16 }}>⏰</div>
-              <h2 style={{ fontSize: 22, fontWeight: 900, color: T.red, marginBottom: 12 }}>انتهت صلاحية الرابط</h2>
-              <p style={{ color: T.muted, fontSize: 14, lineHeight: 2 }}>هذا الرابط كان صالحاً لمدة 90 دقيقة فقط وقد انتهت صلاحيته.<br />يرجى التواصل مع المعلمة للحصول على رابط جديد.</p>
-            </div>
-          </div>
-        )}
-
         {screen === "teacher_login" && <TeacherLogin onSuccess={() => setScreen("dashboard")} onBack={() => setScreen("home")} />}
-        
-        {screen === "dashboard" && <Dashboard results={allResults} teacherSettings={teacherSettings} onBack={() => setScreen("home")} onUpdateSettings={handleUpdateSettings} />}
-        
-        {screen === "register" && <StudentRegister teacherSettings={teacherSettings} exam={exam} onStart={handleStudentStart} />}
+        {screen === "dashboard" && <Dashboard results={allResults} teacherSettings={teacherSettings} onBack={() => setScreen("home")} />}
+        {screen === "register" && <StudentRegister teacherSettings={teacherSettings} exam={currentExam || getExam()} onStart={handleStudentStart} />}
         
         {screen === "exam" && student && currentExam && (
           <ExamPage
@@ -2323,7 +2277,7 @@ export default function App() {
               ...currentExam,
               questions: currentExam.questions.map(q => ({
                 ...q,
-                codeParts: q.codeParts.map(p => p.type === "blank" ? { ...p, answer: undefined, _a: undefined } : p)
+                codeParts: q.codeParts.map(p => p.type === "blank" ? { ...p, answer: undefined } : p)
               }))
             }}
             student={student}
@@ -2332,19 +2286,14 @@ export default function App() {
         )}
 
         {screen === "grading" && (
-          <div style={{ maxWidth: 400, margin: "100px auto", textAlign: "center", fontFamily: "Cairo", direction: "rtl", padding: 24 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: T.navy, marginBottom: 8 }}>جارٍ تصحيح الاختبار...</div>
-            <div style={{ fontSize: 13, color: T.muted }}>يتم التحقق من إجاباتك بشكل آمن</div>
-            <div style={{ marginTop: 20, height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", position: "relative" }}>
-              <div style={{ height: 4, background: T.gold, borderRadius: 2, animation: "loading-bar 1.5s ease-in-out infinite", width: "40%", position: "absolute" }}></div>
-            </div>
+          <div style={{ textAlign: "center", marginTop: 100, fontFamily: "Cairo" }}>
+            <h3>جارٍ تصحيح اختبارك آمنًا...</h3>
           </div>
         )}
 
-        {screen === "results" && result && !showReview && <ResultsPage student={student} result={result} violations={lastViolations.current} onReview={() => setShowReview(true)} />}
-        
-        {screen === "results" && result && showReview && <ReviewPage exam={currentExam} answers={examAnswers} result={result} onBack={() => setShowReview(false)} />}
+        {screen === "results" && result && (
+          <ResultsPage student={student} result={result} violations={lastViolations.current} />
+        )}
       </div>
       <Footer />
     </div>
